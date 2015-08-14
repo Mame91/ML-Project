@@ -1,0 +1,81 @@
+---
+title: "Practical Machine Learning Project"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+        
+## Author: Manuel Meretto (August 2015)
+
+### Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. The goal of the project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise ("classe" variable in the dataset) using any of the variables. The output should be a report describing how you built the model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. The prediction model will then be used to predict 20 different test cases.
+        
+### Packages and Data Loading
+
+We load all packages required for the analysis and set the seed to support reproducibility:
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+set.seed(1357)
+```
+
+We then load the data, manage missing values and delete irrelevant variables:
+
+```{r}
+training <- read.csv('pml-training.csv', na.strings = c("NA", "#DIV/0!", ""))
+testing <- read.csv('pml-testing.csv', na.strings = c("NA", "#DIV/0!", ""))
+```
+
+### Preprocessing
+
+```{r}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+
+training <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+```
+
+We split the training data into subTraining (80% of the training set) and subTesting (20% of the training set):
+
+```{r}
+subsamples <- createDataPartition(y = training$classe, p = 0.80, list = FALSE)
+subTraining <- training[subsamples, ] 
+subTesting <- training[-subsamples, ]
+```
+
+### Exploratory Analysis
+
+We plot the variable "classe" to see the frequency of each of the 5 levels in the subTraining dataset:
+
+```{r}
+plot(subTraining$classe, col="red", main="Levels of 'classe' variable", xlab = "Classe levels", ylab = "Frequency")
+```
+
+We can see from the plot that while level A is the most frequent level (with more than 4000 occurrences), level D is the least frequent (with about 2500 occurrences).
+
+### Prediction with Decision Tree
+
+```{r}
+decisionTreeModel <- rpart(classe ~ ., data=subTraining, method = "class")
+decisionTreePrediction <- predict(decisionTreeModel, subTesting, type = "class")
+rpart.plot(decisionTreeModel, main="Classification Tree", extra = 102, under = TRUE, faclen = 0)
+confusionMatrix(decisionTreePrediction, subTesting$classe)
+```
+
+### Prediction with Random Forest
+
+```{r}
+randomForestModel <- randomForest(classe ~ ., data = subTraining, method = "class")
+randomForestPrediction <- predict(randomForestModel, subTesting, type = "class")
+confusionMatrix(randomForestPrediction, subTesting$classe)
+```
+
+### Conclusions
+
+As can be seen, the Random Forest algorithm overperformed the Decision Tree algorithm. In particular the accuracy for Random Forest model was 0.996 while the accuracy for Decision Tree was 0.750. That is why we choose the random Forest model. We expect an out-of-sample error of 0.4%.
